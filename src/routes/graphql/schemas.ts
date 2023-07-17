@@ -45,6 +45,16 @@ const MemberType = new GraphQLObjectType({
     postsLimitPerMonth: {
       type: GraphQLInt
     },
+    profiles: {
+      type: new GraphQLList(ProfileType),
+      async resolve(parent) {
+        return await prisma.profile.findMany({
+          where: {
+            memberTypeId: parent.id,
+          },
+        });
+      }
+    }
   })
 });
 
@@ -60,6 +70,37 @@ const UserType = new GraphQLObjectType({
     balance: {
       type: GraphQLFloat
     },
+    profile: {
+      type: ProfileType,
+      async resolve(parent) {
+        return await prisma.profile.findUnique({
+          where: {
+            userId: parent.id,
+          },
+        });
+      }
+    },
+    posts: {
+      type: new GraphQLList(PostType),
+      async resolve(parent) {
+        return await prisma.post.findMany({
+          where: {
+            authorId: parent.id,
+          },
+        });
+      }
+    },
+    // userSubscribedTo: {
+    //   type: new GraphQLList(UserType),
+    //   async resolve(parent) {
+    //     console.log(parent.userSubscribedTo);
+    //     await prisma.subscribersOnAuthors.findUnique({
+    //       where: {
+    //         authorId: parent.id,
+    //       },
+    //     });
+    //   }
+    // }
   })
 });
 
@@ -74,6 +115,26 @@ const ProfileType = new GraphQLObjectType({
     },
     yearOfBirth: {
       type: GraphQLInt
+    },
+    user: {
+      type: UserType,
+      async resolve(parent) {
+        return await prisma.user.findUnique({
+          where: {
+            id: parent.userId
+          },
+        });
+      }
+    },
+    memberType: {
+      type: MemberType,
+      async resolve(parent) {
+        return await prisma.memberType.findUnique({
+          where: {
+            id: parent.memberTypeId
+          },
+        });
+      }
     }
   })
 });
@@ -89,7 +150,17 @@ const PostType = new GraphQLObjectType({
     },
     content: {
       type: GraphQLString
-    }
+    },
+    author: {
+      type: UserType,
+      async resolve(parent) {
+        return await prisma.user.findUnique({
+          where: {
+            id: parent.authorId
+          },
+        });
+      }
+    },
   })
 });
 
