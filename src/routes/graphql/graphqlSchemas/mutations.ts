@@ -7,7 +7,7 @@ import { MemberTypeId } from '../types/memberTypeId.js';
 const prisma = new PrismaClient();
 
 const inputUserType = new GraphQLInputObjectType({
-  name: 'UserInput',
+  name: 'CreateUserInput',
   fields: {
     name: {
       type: GraphQLString
@@ -19,7 +19,7 @@ const inputUserType = new GraphQLInputObjectType({
 });
 
 const inputProfileType = new GraphQLInputObjectType({
-  name: 'ProfileInput',
+  name: 'CreateProfileInput',
   fields: {
     userId: {
       type: UUIDType
@@ -37,7 +37,7 @@ const inputProfileType = new GraphQLInputObjectType({
 });
 
 const inputPostType = new GraphQLInputObjectType({
-  name: 'PostInput',
+  name: 'CreatePostInput',
   fields: {
     authorId: {
       type: UUIDType
@@ -78,6 +78,39 @@ const RootMutation = new GraphQLObjectType({
       async resolve(parent, args) {
         return prisma.post.create({
           data: args.dto,
+        });
+      }
+    },
+    deleteUser: {
+      type: GraphQLBoolean,
+      args: { id: { type: UUIDType } },
+      async resolve(parent, args) {
+        await prisma.user.delete({
+          where: {
+            id: args.id,
+          },
+        });
+      }
+    },
+    deleteProfile: {
+      type: GraphQLBoolean,
+      args: { id: { type: UUIDType } },
+      async resolve(parent, args) {
+        await prisma.profile.delete({
+          where: {
+            id: args.id,
+          },
+        });
+      }
+    },
+    deletePost: {
+      type: GraphQLBoolean,
+      args: { id: { type: UUIDType } },
+      async resolve(parent, args) {
+        await prisma.post.delete({
+          where: {
+            id: args.id,
+          },
         });
       }
     },
