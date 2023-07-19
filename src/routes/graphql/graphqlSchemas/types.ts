@@ -6,7 +6,7 @@ import {
   GraphQLNonNull,
   GraphQLObjectType,
   GraphQLString
-} from 'graphql/index.js';
+} from 'graphql';
 import { MemberTypeId } from '../types/memberTypeId.js';
 import { UUIDType } from '../types/uuid.js';
 import { PrismaClient } from '@prisma/client';
