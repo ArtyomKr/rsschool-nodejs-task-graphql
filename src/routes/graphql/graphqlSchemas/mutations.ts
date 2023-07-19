@@ -114,6 +114,36 @@ const RootMutation = new GraphQLObjectType({
         });
       }
     },
+    changeUser: {
+      type: UserType,
+      args: { id: { type: UUIDType }, dto: { type: inputUserType } },
+      async resolve(parent, args) {
+        return prisma.user.update({
+          where: { id: args.id },
+          data: args.dto,
+        });
+      }
+    },
+    changeProfile: {
+      type: ProfileType,
+      args: { id: { type: UUIDType }, dto: { type: inputProfileType } },
+      async resolve(parent, args) {
+        return prisma.profile.update({
+          where: { id: args.id },
+          data: args.dto,
+        });
+      }
+    },
+    changePost: {
+      type: PostType,
+      args: { id: { type: UUIDType }, dto: { type: inputPostType } },
+      async resolve(parent, args) {
+        return prisma.post.update({
+          where: { id: args.id },
+          data: args.dto,
+        });
+      }
+    },
   }
 });
 
