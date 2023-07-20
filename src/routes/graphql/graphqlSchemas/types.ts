@@ -27,7 +27,8 @@ const MemberType = new GraphQLObjectType({
     },
     profiles: {
       type: new GraphQLList(ProfileType),
-      async resolve(parent) {
+      async resolve(parent, args, context) {
+        const { dataloaders } = context;
         return await prisma.profile.findMany({
           where: {
             memberTypeId: parent.id,
@@ -52,7 +53,7 @@ const UserType = new GraphQLObjectType({
     },
     profile: {
       type: ProfileType,
-      async resolve(parent) {
+      async resolve(parent, args) {
         return await prisma.profile.findUnique({
           where: {
             userId: parent.id,
