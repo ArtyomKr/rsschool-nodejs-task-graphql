@@ -10,6 +10,7 @@ import {
 import { MemberTypeId } from '../types/memberTypeId.js';
 import { UUIDType } from '../types/uuid.js';
 import { PrismaClient } from '@prisma/client';
+import DataLoader from 'dataloader';
 
 const prisma = new PrismaClient();
 
@@ -17,7 +18,7 @@ const MemberType = new GraphQLObjectType({
   name: 'MemberType',
   fields: () => ({
     id: {
-      type:  new GraphQLNonNull(MemberTypeId)
+      type: new GraphQLNonNull(MemberTypeId)
     },
     discount: {
       type: GraphQLFloat
@@ -27,8 +28,7 @@ const MemberType = new GraphQLObjectType({
     },
     profiles: {
       type: new GraphQLList(ProfileType),
-      async resolve(parent, args, context) {
-        const { dataloaders } = context;
+      async resolve(parent) {
         return await prisma.profile.findMany({
           where: {
             memberTypeId: parent.id,
@@ -53,12 +53,27 @@ const UserType = new GraphQLObjectType({
     },
     profile: {
       type: ProfileType,
-      async resolve(parent, args) {
-        return await prisma.profile.findUnique({
-          where: {
-            userId: parent.id,
-          },
-        });
+      async resolve(parent, args, context, info) {
+        const { dataloaders } = context;
+
+        let dl = dataloaders.get(info.fieldNodes);
+        if (!dl) {
+          dl = new DataLoader(async (ids: any) => {
+            const profiles = await prisma.profile.findMany({
+              where: {
+                userId: {
+                  in: ids,
+                },
+              },
+            });
+
+            return ids.map((id) => profiles.find((p) => p.userId === id));
+          });
+
+          dataloaders.set(info.fieldNodes, dl);
+        }
+
+        return dl.load(parent.id);
       }
     },
     posts: {
