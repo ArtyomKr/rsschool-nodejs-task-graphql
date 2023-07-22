@@ -5,6 +5,8 @@ import { graphqlSchema } from './graphqlSchemas/graphqlSchema.js';
 import depthLimit from 'graphql-depth-limit';
 
 const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
+  const { prisma } = fastify;
+
   fastify.route({
     url: '/',
     method: 'POST',
@@ -32,7 +34,7 @@ const plugin: FastifyPluginAsyncTypebox = async (fastify) => {
         schema: graphqlSchema,
         source: query,
         variableValues: variables,
-        contextValue: { dataloaders: new WeakMap() }
+        contextValue: { dataloaders: new WeakMap(), prisma }
       });
     },
   });
