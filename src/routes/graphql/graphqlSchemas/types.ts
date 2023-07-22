@@ -9,10 +9,7 @@ import {
 } from 'graphql';
 import { MemberTypeId } from '../types/memberTypeId.js';
 import { UUIDType } from '../types/uuid.js';
-import { PrismaClient } from '@prisma/client';
 import DataLoader from 'dataloader';
-
-const prisma = new PrismaClient();
 
 const MemberType = new GraphQLObjectType({
   name: 'MemberType',
@@ -28,7 +25,8 @@ const MemberType = new GraphQLObjectType({
     },
     profiles: {
       type: new GraphQLList(ProfileType),
-      async resolve(parent) {
+      async resolve(parent, args, context) {
+        const { prisma } = context;
         return await prisma.profile.findMany({
           where: {
             memberTypeId: parent.id,
@@ -54,11 +52,11 @@ const UserType = new GraphQLObjectType({
     profile: {
       type: ProfileType,
       async resolve(parent, args, context, info) {
-        const { dataloaders } = context;
+        const { dataloaders, prisma } = context;
 
         let dl = dataloaders.get(info.fieldNodes);
         if (!dl) {
-          dl = new DataLoader(async (ids: string[]) => {
+          dl = new DataLoader(async (ids: any) => {
             const profiles = await prisma.profile.findMany({
               where: {
                 userId: {
@@ -79,11 +77,11 @@ const UserType = new GraphQLObjectType({
     posts: {
       type: new GraphQLList(PostType),
       async resolve(parent, args, context, info) {
-        const { dataloaders } = context;
+        const { dataloaders, prisma } = context;
 
         let dl = dataloaders.get(info.fieldNodes);
         if (!dl) {
-          dl = new DataLoader(async (ids: string[]) => {
+          dl = new DataLoader(async (ids: any) => {
             const posts = await prisma.post.findMany({
               where: {
                 authorId: {
@@ -92,7 +90,7 @@ const UserType = new GraphQLObjectType({
               },
             });
 
-            return ids.map((id) => posts.find((p) => p.authorId === id));
+            return ids.map((id) => posts.filter((p) => p.authorId === id));
           });
 
           dataloaders.set(info.fieldNodes, dl);
@@ -104,11 +102,11 @@ const UserType = new GraphQLObjectType({
     userSubscribedTo: {
       type: new GraphQLList(UserType),
       async resolve(parent, args, context, info) {
-        const { dataloaders } = context;
+        const { dataloaders, prisma } = context;
 
         let dl = dataloaders.get(info.fieldNodes);
         if (!dl) {
-          dl = new DataLoader(async (ids: string[]) => {
+          dl = new DataLoader(async (ids: any) => {
             const authors = await prisma.user.findMany({
               where: {
                 subscribedToUser: {
@@ -118,10 +116,13 @@ const UserType = new GraphQLObjectType({
                     },
                   },
                 },
-              }
+              },
+              include: {
+                subscribedToUser: true,
+              },
             });
 
-            return ids.map((id) => authors.find((a) => a.subscriberId === id));
+            return ids.map((id) => authors.filter((a) => a.subscribedToUser.find(({ subscriberId }) => subscriberId === id)));
           });
 
           dataloaders.set(info.fieldNodes, dl);
@@ -133,11 +134,11 @@ const UserType = new GraphQLObjectType({
     subscribedToUser: {
       type: new GraphQLList(UserType),
       async resolve(parent, args, context, info) {
-        const { dataloaders } = context;
+        const { dataloaders, prisma } = context;
 
         let dl = dataloaders.get(info.fieldNodes);
         if (!dl) {
-          dl = new DataLoader(async (ids: string[]) => {
+          dl = new DataLoader(async (ids: any) => {
             const subscribers = await prisma.user.findMany({
               where: {
                 userSubscribedTo: {
@@ -147,10 +148,13 @@ const UserType = new GraphQLObjectType({
                     },
                   },
                 },
-              }
+              },
+              include: {
+                userSubscribedTo: true,
+              },
             });
 
-            return ids.map((id) => subscribers.find((s) => s.authorId === id));
+            return ids.map((id) => subscribers.filter((a) => a.userSubscribedTo.find(({ authorId }) => authorId === id)));
           });
 
           dataloaders.set(info.fieldNodes, dl);
@@ -176,22 +180,52 @@ const ProfileType = new GraphQLObjectType({
     },
     user: {
       type: UserType,
-      async resolve(parent) {
-        return await prisma.user.findUnique({
-          where: {
-            id: parent.userId
-          },
-        });
+      async resolve(parent, args, context, info) {
+        const { dataloaders, prisma } = context;
+
+        let dl = dataloaders.get(info.fieldNodes);
+        if (!dl) {
+          dl = new DataLoader(async (ids: any) => {
+            const users = await prisma.user.findMany({
+              where: {
+                id: {
+                  in: ids,
+                },
+              },
+            });
+
+            return ids.map((id) => users.find((u) => u.id === id));
+          });
+
+          dataloaders.set(info.fieldNodes, dl);
+        }
+
+        return dl.load(parent.userId);
       }
     },
     memberType: {
       type: MemberType,
-      async resolve(parent) {
-        return await prisma.memberType.findUnique({
-          where: {
-            id: parent.memberTypeId
-          },
-        });
+      async resolve(parent, args, context, info) {
+        const { dataloaders, prisma } = context;
+
+        let dl = dataloaders.get(info.fieldNodes);
+        if (!dl) {
+          dl = new DataLoader(async (ids: any) => {
+            const users = await prisma.memberType.findMany({
+              where: {
+                id: {
+                  in: ids,
+                },
+              },
+            });
+
+            return ids.map((id) => users.find((u) => u.id === id));
+          });
+
+          dataloaders.set(info.fieldNodes, dl);
+        }
+
+        return dl.load(parent.memberTypeId);
       }
     }
   })
@@ -211,12 +245,27 @@ const PostType = new GraphQLObjectType({
     },
     author: {
       type: UserType,
-      async resolve(parent) {
-        return await prisma.user.findUnique({
-          where: {
-            id: parent.authorId
-          },
-        });
+      async resolve(parent, args, context, info) {
+        const { dataloaders, prisma } = context;
+
+        let dl = dataloaders.get(info.fieldNodes);
+        if (!dl) {
+          dl = new DataLoader(async (ids: any) => {
+            const users = await prisma.user.findMany({
+              where: {
+                id: {
+                  in: ids,
+                },
+              },
+            });
+
+            return ids.map((id) => users.find((u) => u.id === id));
+          });
+
+          dataloaders.set(info.fieldNodes, dl);
+        }
+
+        return dl.load(parent.authorId);
       }
     },
   })
