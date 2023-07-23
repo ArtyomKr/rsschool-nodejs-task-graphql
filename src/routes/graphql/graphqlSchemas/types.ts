@@ -102,7 +102,9 @@ const UserType = new GraphQLObjectType({
     userSubscribedTo: {
       type: new GraphQLList(UserType),
       async resolve(parent, args, context, info) {
-        const { dataloaders, prisma } = context;
+        const { dataloaders, prisma, subscribesLoader } = context;
+
+        if (subscribesLoader) return subscribesLoader.load(parent.id)
 
         let dl = dataloaders.get(info.fieldNodes);
         if (!dl) {
@@ -134,7 +136,9 @@ const UserType = new GraphQLObjectType({
     subscribedToUser: {
       type: new GraphQLList(UserType),
       async resolve(parent, args, context, info) {
-        const { dataloaders, prisma } = context;
+        const { dataloaders, prisma, subscribersLoader } = context;
+
+        if (subscribersLoader) return subscribersLoader.load(parent.id)
 
         let dl = dataloaders.get(info.fieldNodes);
         if (!dl) {

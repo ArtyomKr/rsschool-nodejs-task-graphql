@@ -1,15 +1,9 @@
-import {
-  GraphQLBoolean,
-  GraphQLFloat,
-  GraphQLInt,
-  GraphQLList,
-  GraphQLNonNull,
-  GraphQLObjectType,
-  GraphQLString
-} from 'graphql/index.js';
+import { GraphQLList, GraphQLNonNull, GraphQLObjectType } from 'graphql/index.js';
 import { MemberTypeId } from '../types/memberTypeId.js';
 import { UUIDType } from '../types/uuid.js';
 import { MemberType, PostType, ProfileType, UserType } from './types.js';
+import { parseResolveInfo, ResolveTree, simplifyParsedResolveInfoFragmentWithType } from 'graphql-parse-resolve-info';
+import DataLoader from 'dataloader';
 
 const RootQuery = new GraphQLObjectType({
   name: 'RootQuery',
@@ -35,9 +29,37 @@ const RootQuery = new GraphQLObjectType({
     },
     users: {
       type: new GraphQLList(UserType),
-      async resolve(parent, args, context) {
-        const { prisma } = context;
-        return await prisma.user.findMany();
+      async resolve(parent, args, context, info) {
+        const { dataloaders, prisma } = context;
+        const parsed = parseResolveInfo(info);
+        const { fields } : { fields: Record<string, unknown> } = simplifyParsedResolveInfoFragmentWithType(<ResolveTree>parsed, UserType);
+
+        let res;
+        if (fields.userSubscribedTo || fields.subscribedToUser) {
+          res = await prisma.user.findMany({
+            include: {
+              subscribedToUser: Boolean(fields.subscribedToUser),
+              userSubscribedTo: Boolean(fields.userSubscribedTo),
+            },
+          })
+          if (fields.subscribedToUser) {
+            const getSubscribers = (user) => user.subscribedToUser.map((sub) => res.find((user) => user.id === sub.subscriberId));
+
+            const subscribersLoader = new DataLoader(async () => [null]);
+            res.forEach((user) => subscribersLoader.prime(user.id, getSubscribers(user)));
+            context.subscribersLoader = subscribersLoader;
+          }
+          if (fields.userSubscribedTo) {
+            const getSubscribes = (user) => user.userSubscribedTo.map((authors) => res.find((user) => user.id === authors.authorId));
+            const subscribesLoader = new DataLoader(async () => [null]);
+            res.forEach((user) => subscribesLoader.prime(user.id, getSubscribes(user)));
+            context.subscribesLoader = subscribesLoader;
+          }
+        } else {
+          res = await prisma.user.findMany();
+        }
+
+        return res;
       }
     },
     user: {
